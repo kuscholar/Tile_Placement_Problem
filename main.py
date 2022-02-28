@@ -7,8 +7,9 @@ import fileReader
 
 DEFAULT_FILE = 'input1.txt'
 def main(file_name: str):
-    # Use a breakpoint in the code line below to debug your script.
-    print(fileReader.readTxt(input_str))  # Press Ctrl+F8 to toggle the breakpoint.
+    landScape, tiles, targets = fileReader.readTxt(file_name)
+
+
 
 
 # Press the green button in the gutter to run the script.
