@@ -4,22 +4,167 @@ Created date: 2/26/2022
 Author: Kusch
 '''
 from fileReader import *
+from csp import *
 
-class Tiles:
+
+
+
+class UniversalDict:
+    """A universal dict maps any key to the same value. We use it here
+    as the domains dict for CSPs in which all variables have the same domain.
+    >>> d = UniversalDict(42)
+    >>> d['life']
+    42
+
+    {Any: [0, 1, 2]}
+    """
+
+    def __init__(self, value): self.value = value
+
+    def __getitem__(self, key): return self.value
+
+    def __repr__(self): return '{{Any: {0!r}}}'.format(self.value)
+
+class Tiles(CSP):
     '''
     when class Tiles is initialized, the inputs are landScape, tiles;
     there should be functions such as check current visible bushes, check current available tiles, etc.
+
+    input format:
+        landScape([int][int]): graph of the landScape, input as a matrix
+        tiles([int])： list of the numbers of three kinds of tiles;
+            tiles[0]: # of outer_boundary
+            tiles[1]: # of el_shape
+            tiles[2]: # of full_block
+        targets([int]): target number of four kinds of colored bushes visible
+            targets[0]: # of color 1
+            targets[1]: # of color 2
+            targets[2]: # of color 3
+            targets[3]: # of color 4
     '''
-    def __init__(self, landScape, tiles):
+    def __init__(self, landScape, tiles, targets):
         self.landScape = landScape
         self.tiles = tiles
+        self.targets = targets
         self.visibleBushes = [0, 0, 0, 0]  # a list of int, recording the numbers of visible bush colors in the order of 1,2,3,4
         self.availableTiles = tiles  # a list of int, recording the numbers of available tiles in the order of outer, el, full
         for cell in range(TILES_NUMBER):
-            self.updateVisibleBushes(self.visibleBushes, self.bushesInCell(self.landScape[cell]))
+            self.initVisibleBushes(self.visibleBushes, self.bushesInCell(self.landScape[cell]))
+        CSP.__init__(self, list(range(len(landScape))), UniversalDict(list(range(len(tiles)))), UniversalDict(list(range(len(tiles)))),
+                         self.tile_constraint)
 
-    
-    def updateVisibleBushes(self, visibleBushes, bushesInCell): # tested working fine on 2/27/2022
+    def tile_constraint(self, A, a, B, b):
+        """
+        constraints for tile placement, generally it's only the placement of tiles should not exceed the target and the number of tiles that we have
+        :param A: var
+        :param a: val
+        :param B: var2
+        :param b: assignment[var2]
+        :return: boolean, whether this satisfies the constraints
+        """
+        for i in range(len(self.tiles)):
+            if self.availableTiles[i] < 0:
+                return False
+        for i in range(len(self.visibleBushes)):
+            if self.visibleBushes[i] < self.targets[i]:
+                return False
+        return True
+
+    def updateVisibleBushes(self, cellNumber, typeOfTile, isAssign):
+        """
+
+        :param cellNumber:
+        :param typeOfTile:
+        :param isAssign: a boolean, whether this is an assignment operation or not, allows this update to handle both ways
+        :return: void, just update self.visibleBushes
+        """
+        cell = self.landScape[cellNumber]
+        coveredBushes = self.bushesCovered(cell, typeOfTile)
+        if isAssign:
+            for i in range(len(self.visibleBushes)):
+                self.visibleBushes[i] -= coveredBushes[i]
+        else:
+            for i in range(len(self.visibleBushes)):
+                self.visibleBushes[i] += coveredBushes[i]
+
+    def bushesCovered(self, cell, typeOfTile):
+        bushes = [0, 0, 0, 0]
+        if typeOfTile == 0:
+            for i in range(len(cell[0])):
+                color = cell[0][i]
+                if color == 0:
+                    continue
+                bushes[color - 1] += 1
+            for i in range(len(cell[3])):
+                color = cell[3][i]
+                if color == 0:
+                    continue
+                bushes[color - 1] += 1
+            color = cell[1][0]
+            if color != 0: bushes[color - 1] += 1
+            color = cell[2][0]
+            if color != 0: bushes[color - 1] += 1
+            color = cell[1][3]
+            if color != 0: bushes[color - 1] += 1
+            color = cell[2][3]
+            if color != 0: bushes[color - 1] += 1
+            return bushes
+
+        elif typeOfTile == 1:
+            for i in range(len(cell[0])):
+                color = cell[0][i]
+                if color == 0:
+                    continue
+                bushes[color - 1] += 1
+            for i in range(1, len(cell)):
+                color = cell[i][0]
+                if color == 0:
+                    continue
+                bushes[color - 1] += 1
+            return bushes
+        else:
+            return self.bushesInCell(cell)
+
+    # these are overriding functions in csp.py
+
+    def assign(self, var, val, assignment):
+        """Add {var: val} to assignment; Discard the old value if any."""
+        assignment[var] = val
+        self.nassigns += 1
+        self.availableTiles[val] -= 1
+        self.updateVisibleBushes(var, val, True)
+
+    def unassign(self, var, assignment):
+        """Remove {var: val} from assignment.
+        DO NOT call this if you are changing a variable to a new value;
+        just call assign for that."""
+        if var in assignment:
+            val = assignment[var]
+            del assignment[var]
+            self.availableTiles[val] += 1
+            self.updateVisibleBushes(var, val, False)
+
+    def nconflicts(self, var, val, assignment):
+        """Return the number of conflicts var=val has with other variables."""
+
+        # Subclasses may implement this more efficiently
+        def conflict(var2):
+            return var2 in assignment and not self.constraints(var, val, var2, assignment[var2])
+
+        return count(conflict(v) for v in self.neighbors[var])
+
+
+    def display(self, assignment):
+        """Show a human-readable representation of the CSP."""
+        # Subclasses can print in a prettier way, or display with a GUI
+        print(assignment)
+
+
+    # above are overriden functions
+
+
+
+    def initVisibleBushes(self, visibleBushes, bushesInCell): # tested working fine on 2/27/2022
         '''
         once upon a cell, update the total number of bush colors by adding up the bush colors inside the current cell
         :param visibleBushes: the global variable inside the class, to record the total numbers of bush colors
@@ -95,5 +240,6 @@ if __name__ == '__main__':
                 testLandScape3[tile][row].append(0)
 
     testTiles = [6,7,12]
-    test = Tiles(testLandScape, testTiles)
-    print(test.visibleBushes)
+    testTargets = [18, 19, 16, 17]
+    test = Tiles(testLandScape, testTiles, testTargets)
+    print(test.availableTiles)

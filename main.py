@@ -4,11 +4,13 @@ Create Date: 2/21/2022
 Author: Kusch
 '''
 import fileReader
+from csp import *
+from tiles import *
 
 DEFAULT_FILE = 'input1.txt'
 def main(file_name: str):
     landScape, tiles, targets = fileReader.readTxt(file_name)
-
+    print(backtracking_search(Tiles(landScape, tiles, targets)))
 
 
 
