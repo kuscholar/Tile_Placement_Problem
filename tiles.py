@@ -53,7 +53,7 @@ class Tiles(CSP):
         CSP.__init__(self, list(range(len(landScape))), UniversalDict(list(range(len(tiles)))), UniversalDict(list(range(len(tiles)))),
                          self.tile_constraint)
 
-    def tile_constraint(self, A, a, B, b):
+    def tile_constraint(self, A, a, B, b, assignment):
         """
         constraints for tile placement, generally it's only the placement of tiles should not exceed the target and the number of tiles that we have
         :param A: var
@@ -62,17 +62,25 @@ class Tiles(CSP):
         :param b: assignment[var2]
         :return: boolean, whether this satisfies the constraints
         """
+        # for i in range(len(self.tiles)):
+        #     if self.availableTiles[i] < 0:
+        #         return False
+        # for i in range(len(self.visibleBushes)):
+        #     if self.visibleBushes[i] < self.targets[i]:
+        #         return False
+        availableTiles = self.currAvailableTiles(assignment)
         for i in range(len(self.tiles)):
-            if self.availableTiles[i] < 0:
-                return False
+            if availableTiles[i] < 0:
+                    return False
+        visibleBushes = self.currVisibleBushes(assignment)
         for i in range(len(self.visibleBushes)):
-            if self.visibleBushes[i] < self.targets[i]:
+            if visibleBushes[i] < self.targets[i]:
                 return False
         return True
 
-    def updateVisibleBushes(self, cellNumber, typeOfTile, isAssign):
+    def updateVisibleBushes(self, cellNumber, typeOfTile, isAssign, visibleBushes):
         """
-
+        change this function to handle local variables instead
         :param cellNumber:
         :param typeOfTile:
         :param isAssign: a boolean, whether this is an assignment operation or not, allows this update to handle both ways
@@ -82,10 +90,10 @@ class Tiles(CSP):
         coveredBushes = self.bushesCovered(cell, typeOfTile)
         if isAssign:
             for i in range(len(self.visibleBushes)):
-                self.visibleBushes[i] -= coveredBushes[i]
+                visibleBushes[i] -= coveredBushes[i]
         else:
             for i in range(len(self.visibleBushes)):
-                self.visibleBushes[i] += coveredBushes[i]
+                visibleBushes[i] += coveredBushes[i]
 
     def bushesCovered(self, cell, typeOfTile):
         bushes = [0, 0, 0, 0]
@@ -125,14 +133,27 @@ class Tiles(CSP):
         else:
             return self.bushesInCell(cell)
 
+    def currAvailableTiles(self, assignment):
+        availableTiles = self.availableTiles
+        for tile in assignment.values():
+            availableTiles[tile] -= 1
+        return availableTiles
+
+    def currVisibleBushes(self, assignment):
+        visibleBushes = self.visibleBushes
+        for cell in assignment.keys():
+            self.updateVisibleBushes(cell, assignment[cell], True, visibleBushes)
+        return visibleBushes
+
+
     # these are overriding functions in csp.py
 
     def assign(self, var, val, assignment):
         """Add {var: val} to assignment; Discard the old value if any."""
         assignment[var] = val
         self.nassigns += 1
-        self.availableTiles[val] -= 1
-        self.updateVisibleBushes(var, val, True)
+        # self.availableTiles[val] -= 1
+        # self.updateVisibleBushes(var, val, True)
 
     def unassign(self, var, assignment):
         """Remove {var: val} from assignment.
@@ -141,17 +162,32 @@ class Tiles(CSP):
         if var in assignment:
             val = assignment[var]
             del assignment[var]
-            self.availableTiles[val] += 1
-            self.updateVisibleBushes(var, val, False)
+            # self.availableTiles[val] += 1
+            # self.updateVisibleBushes(var, val, False)
 
     def nconflicts(self, var, val, assignment):
-        """Return the number of conflicts var=val has with other variables."""
+        """# Return the number of conflicts var=val has with other variables.
+            Return the number of conflicts this landScape have if var:val assigned"""
+        count = 0
+        self.assign(var, val, assignment)
 
+        currAvailableTiles = self.currAvailableTiles(assignment)
+        currVisibleBushes = self.currVisibleBushes(assignment)
+
+        for i in range(len(self.tiles)):
+            if currAvailableTiles[i] < 0:
+                count += 1
+        for i in range(len(self.visibleBushes)):
+            if currVisibleBushes[i] < self.targets[i]:
+                count += 1
+
+        self.unassign(var, assignment)
+        return count
         # Subclasses may implement this more efficiently
-        def conflict(var2):
-            return var2 in assignment and not self.constraints(var, val, var2, assignment[var2])
-
-        return count(conflict(v) for v in self.neighbors[var])
+        # def conflict(var2):
+        #     return var2 in assignment and not self.constraints(var, val, var2, assignment[var2])
+        #
+        # return count(conflict(v) for v in self.neighbors[var])
 
 
     def display(self, assignment):
@@ -159,6 +195,20 @@ class Tiles(CSP):
         # Subclasses can print in a prettier way, or display with a GUI
         print(assignment)
 
+        # These are for constraint propagation
+
+    def support_pruning(self):
+        """Make sure we can prune values from domains. (We want to pay
+        for this only if we use it.)"""
+        if self.curr_domains is None:
+            self.curr_domains = {v: list(self.domains[v]) for v in self.variables}
+
+    def suppose(self, var, value):
+        """Start accumulating inferences from assuming var=value."""
+        self.support_pruning()
+        removals = [(var, a) for a in self.curr_domains[var] if a != value]
+        self.curr_domains[var] = [value]
+        return removals
 
     # above are overriden functions
 
@@ -239,7 +289,8 @@ if __name__ == '__main__':
             for col in range(TILE_SIZE):
                 testLandScape3[tile][row].append(0)
 
-    testTiles = [6,7,12]
+    testTiles = [6, 7, 12]
     testTargets = [18, 19, 16, 17]
     test = Tiles(testLandScape, testTiles, testTargets)
-    print(test.availableTiles)
+    print(testLandScape, testTiles, testTargets)
+    print(backtracking_search(test))

@@ -369,7 +369,7 @@ def forward_checking(csp, var, value, assignment, removals):
     for B in csp.neighbors[var]:
         if B not in assignment:
             for b in csp.curr_domains[B][:]:
-                if not csp.constraints(var, value, B, b):
+                if not csp.constraints(var, value, B, b, assignment):  # here added another variable for constraints, is for Tiles class
                     csp.prune(B, b, removals)
             if not csp.curr_domains[B]:
                 return False
@@ -399,8 +399,10 @@ def backtracking_search(csp, select_unassigned_variable=first_unassigned_variabl
         if len(assignment) == len(csp.variables):
             return assignment
         var = select_unassigned_variable(assignment, csp)
+        print(var, assignment, csp.availableTiles, csp.visibleBushes)
+        # while not len(assignment) == len(csp.variables):
         for value in order_domain_values(var, assignment, csp):
-            if 0 == csp.nconflicts(var, value, assignment):
+            if 0 == csp.nconflicts(var, value, assignment):  # this means if we assign var and value here, how many conflicts we get
                 csp.assign(var, value, assignment)
                 removals = csp.suppose(var, value)
                 if inference(csp, var, value, assignment, removals):
@@ -412,7 +414,7 @@ def backtracking_search(csp, select_unassigned_variable=first_unassigned_variabl
         return None
 
     result = backtrack({})
-    assert result is None or csp.goal_test(result)
+    # assert result is None or csp.goal_test(result)
     return result
 
 # ______________________________________________________________________________
