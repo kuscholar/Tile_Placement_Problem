@@ -5,7 +5,7 @@ Author: Kusch
 '''
 from fileReader import *
 from csp import *
-
+import copy
 
 
 
@@ -74,8 +74,9 @@ class Tiles(CSP):
                 return False
         visibleBushes = self.currVisibleBushes(assignment)
         for i in range(len(self.visibleBushes)):
-            if visibleBushes[i] < self.targets[i]:
-                return False
+            if len(assignment) == len(self.landScape):
+                if visibleBushes[i] != self.targets[i]:
+                    return False
         return True
 
     def updateVisibleBushes(self, cellNumber, typeOfTile, isAssign, visibleBushes):
@@ -144,7 +145,7 @@ class Tiles(CSP):
 
     def currVisibleBushes(self, assignment):
         currVisibleBushes = []
-        # currVisibleBushes = self.visibleBushes   -> why implementing currVisibleBushes influences the self.visibleBushes?
+        # currVisibleBushes = self.visibleBushes   -> if the refered type is not primary type, the assign will be the reference, which will influence the original variable
         for i in range(len(self.visibleBushes)):
             currVisibleBushes.append(self.visibleBushes[i])
         for cell in assignment.keys():
@@ -184,8 +185,11 @@ class Tiles(CSP):
             if currAvailableTiles[i] < 0:
                 count += 1
         for i in range(len(self.visibleBushes)):
-            if currVisibleBushes[i] < self.targets[i]:
-                count += 1
+            # if currVisibleBushes[i] < self.targets[i] + 3:  # 5 is just a random number , should be the number of bushes if assign here
+            #     if currVisibleBushes[i] != self.targets[i]:
+            if len(assignment) == len(self.landScape):
+                if currVisibleBushes[i] != self.targets[i]:
+                    count += 1
 
         self.unassign(var, assignment)
         return count
@@ -328,12 +332,12 @@ def backtracking_search(csp, select_unassigned_variable=mrv,
     """
 
     def backtrack(assignment):
-        if len(assignment) == len(csp.variables) and checkResult(assignment, csp) == csp.targets:
+        # if len(assignment) == len(csp.variables) and checkResult(assignment, csp)[1] == csp.targets:
+        if len(assignment) == len(csp.variables):
             return assignment
-        elif len(assignment) == len(csp.variables):
-            return
+
         var = select_unassigned_variable(assignment, csp)
-        print(assignment)
+        # print(assignment)
         # while not len(assignment) == len(csp.variables):
         for value in order_domain_values(var, assignment, csp):
             if 0 == csp.nconflicts(var, value,
@@ -349,7 +353,7 @@ def backtracking_search(csp, select_unassigned_variable=mrv,
         return None
 
     result = backtrack({})
-    assert result is None or csp.goal_test(result)
+    # assert result is None or csp.goal_test(result)
     return result
 
 def checkResult(result, tiles):
@@ -417,16 +421,13 @@ def checkResult(result, tiles):
         return bushes
 
     tilesUsed = [0, 0, 0]
-    visibleBushes = tiles.visibleBushes
+    visibleBushes = copy.deepcopy(tiles.visibleBushes)
 
     for cellNumber in result.keys():
         tilesUsed[result[cellNumber]] += 1
         updateVisibleBushes(cellNumber, result[cellNumber], visibleBushes)
-    print("Tiles available: ", tiles.availableTiles)
-    print("Tiles used: ", tilesUsed)
-    print("Target bushes: ", tiles.targets)
-    print("Visible bushes: ", visibleBushes)
-    return visibleBushes
+
+    return tilesUsed, visibleBushes
 
 
 if __name__ == '__main__':
