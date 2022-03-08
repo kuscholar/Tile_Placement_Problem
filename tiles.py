@@ -89,10 +89,10 @@ class Tiles(CSP):
         cell = self.landScape[cellNumber]
         coveredBushes = self.bushesCovered(cell, typeOfTile)
         if isAssign:
-            for i in range(len(self.visibleBushes)):
+            for i in range(len(coveredBushes)):
                 visibleBushes[i] -= coveredBushes[i]
         else:
-            for i in range(len(self.visibleBushes)):
+            for i in range(len(coveredBushes)):
                 visibleBushes[i] += coveredBushes[i]
 
     def bushesCovered(self, cell, typeOfTile):
@@ -134,16 +134,22 @@ class Tiles(CSP):
             return self.bushesInCell(cell)
 
     def currAvailableTiles(self, assignment):
-        availableTiles = self.availableTiles
+        # availableTiles = self.availableTiles
+        currAvailableTiles = []
+        for i in range(len(self.availableTiles)):
+            currAvailableTiles.append(self.availableTiles[i])
         for tile in assignment.values():
-            availableTiles[tile] -= 1
-        return availableTiles
+            currAvailableTiles[tile] -= 1
+        return currAvailableTiles
 
     def currVisibleBushes(self, assignment):
-        visibleBushes = self.visibleBushes
+        currVisibleBushes = []
+        # currVisibleBushes = self.visibleBushes   -> why implementing currVisibleBushes influences the self.visibleBushes?
+        for i in range(len(self.visibleBushes)):
+            currVisibleBushes.append(self.visibleBushes[i])
         for cell in assignment.keys():
-            self.updateVisibleBushes(cell, assignment[cell], True, visibleBushes)
-        return visibleBushes
+            self.updateVisibleBushes(cell, assignment[cell], True, currVisibleBushes)
+        return currVisibleBushes
 
 
     # these are overriding functions in csp.py
@@ -238,6 +244,80 @@ class Tiles(CSP):
                     continue
                 bushes[color - 1] += 1
         return bushes
+
+def checkResult(result, tiles):
+    """
+    Check if the result is correct, which should have the correct number of tiles used, and target numbers of bushes visible
+    :param result: Dict of the final assignment
+    :param tiles: Type of the class Tiles
+    :return:
+    """
+    def updateVisibleBushes(cellNumber, typeOfTile, visibleBushes):
+
+        cell = tiles.landScape[cellNumber]
+        coveredBushes = bushesCovered(cell, typeOfTile)
+        for i in range(len(coveredBushes)):
+            visibleBushes[i] -= coveredBushes[i]
+
+
+    def bushesCovered(cell, typeOfTile):
+        bushes = [0, 0, 0, 0]
+        if typeOfTile == 0:
+            for i in range(len(cell[0])):
+                color = cell[0][i]
+                if color == 0:
+                    continue
+                bushes[color - 1] += 1
+            for i in range(len(cell[3])):
+                color = cell[3][i]
+                if color == 0:
+                    continue
+                bushes[color - 1] += 1
+            color = cell[1][0]
+            if color != 0: bushes[color - 1] += 1
+            color = cell[2][0]
+            if color != 0: bushes[color - 1] += 1
+            color = cell[1][3]
+            if color != 0: bushes[color - 1] += 1
+            color = cell[2][3]
+            if color != 0: bushes[color - 1] += 1
+            return bushes
+
+        elif typeOfTile == 1:
+            for i in range(len(cell[0])):
+                color = cell[0][i]
+                if color == 0:
+                    continue
+                bushes[color - 1] += 1
+            for i in range(1, len(cell)):
+                color = cell[i][0]
+                if color == 0:
+                    continue
+                bushes[color - 1] += 1
+            return bushes
+        else:
+            return bushesInCell(cell)
+
+    def bushesInCell(cell):
+
+        bushes = [0, 0, 0, 0]
+        for row in range(len(cell)):
+            for col in range(len(cell[0])):
+                color = cell[row][col]
+                if color == 0:
+                    continue
+                bushes[color - 1] += 1
+        return bushes
+
+    tilesUsed = [0, 0, 0]
+    visibleBushes = tiles.visibleBushes
+    for cellNumber in result.keys():
+        tilesUsed[result[cellNumber]] += 1
+        updateVisibleBushes(cellNumber, result[cellNumber], visibleBushes)
+    print("Tiles used: ", tilesUsed)
+    print("Visible bushes: ", visibleBushes)
+
+
 
 if __name__ == '__main__':
     '''

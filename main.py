@@ -10,8 +10,10 @@ from tiles import *
 DEFAULT_FILE = 'input1.txt'
 def main(file_name: str):
     landScape, tiles, targets = fileReader.readTxt(file_name)
-    print(backtracking_search(Tiles(landScape, tiles, targets)))
-
+    tiles = Tiles(landScape, tiles, targets)
+    result = backtracking_search(tiles)
+    print(result)
+    checkResult(result, tiles)
 
 
 # Press the green button in the gutter to run the script.

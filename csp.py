@@ -384,8 +384,8 @@ def mac(csp, var, value, assignment, removals, constraint_propagation=AC3b):
 # The search, proper
 
 
-def backtracking_search(csp, select_unassigned_variable=first_unassigned_variable,
-                        order_domain_values=unordered_domain_values, inference=no_inference):
+def backtracking_search(csp, select_unassigned_variable=mrv,
+                        order_domain_values=lcv, inference=forward_checking):
     """
 
     :param csp:
@@ -414,7 +414,7 @@ def backtracking_search(csp, select_unassigned_variable=first_unassigned_variabl
         return None
 
     result = backtrack({})
-    # assert result is None or csp.goal_test(result)
+    assert result is None or csp.goal_test(result)
     return result
 
 # ______________________________________________________________________________
