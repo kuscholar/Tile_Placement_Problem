@@ -376,7 +376,7 @@ def forward_checking(csp, var, value, assignment, removals):
     return True
 
 
-def mac(csp, var, value, assignment, removals, constraint_propagation=AC3b):
+def mac(csp, var, value, assignment, removals, constraint_propagation=AC3):
     """Maintain arc consistency."""
     return constraint_propagation(csp, {(X, var) for X in csp.neighbors[var]}, removals)
 
@@ -399,7 +399,7 @@ def backtracking_search(csp, select_unassigned_variable=mrv,
         if len(assignment) == len(csp.variables):
             return assignment
         var = select_unassigned_variable(assignment, csp)
-        print(var, assignment, csp.availableTiles, csp.visibleBushes)
+        print(assignment)
         # while not len(assignment) == len(csp.variables):
         for value in order_domain_values(var, assignment, csp):
             if 0 == csp.nconflicts(var, value, assignment):  # this means if we assign var and value here, how many conflicts we get

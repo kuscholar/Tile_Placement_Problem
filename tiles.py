@@ -71,7 +71,7 @@ class Tiles(CSP):
         availableTiles = self.currAvailableTiles(assignment)
         for i in range(len(self.tiles)):
             if availableTiles[i] < 0:
-                    return False
+                return False
         visibleBushes = self.currVisibleBushes(assignment)
         for i in range(len(self.visibleBushes)):
             if visibleBushes[i] < self.targets[i]:
@@ -245,6 +245,113 @@ class Tiles(CSP):
                 bushes[color - 1] += 1
         return bushes
 
+# ______________________________________________________________________________
+# Constraint Propagation with AC3
+
+
+def no_arc_heuristic(csp, queue):
+    return queue
+
+
+def dom_j_up(csp, queue):
+    return SortedSet(queue, key=lambda t: neg(len(csp.curr_domains[t[1]])))
+
+
+def AC3(csp, assignment, queue=None, removals=None, arc_heuristic=dom_j_up):
+    """[Figure 6.3]"""
+    if queue is None:
+        queue = {(Xi, Xk) for Xi in csp.variables for Xk in csp.neighbors[Xi]}
+    csp.support_pruning()
+    queue = arc_heuristic(csp, queue)
+    checks = 0
+    while queue:
+        (Xi, Xj) = queue.pop()
+        revised, checks = revise(csp, assignment, Xi, Xj, removals, checks) # here added another variable for constraints, is for Tiles class
+        if revised:
+            if not csp.curr_domains[Xi]:
+                return False, checks  # CSP is inconsistent
+            for Xk in csp.neighbors[Xi]:
+                if Xk != Xj:
+                    queue.add((Xk, Xi))
+    return True, checks  # CSP is satisfiable
+
+
+def revise(csp, assignment, Xi, Xj, removals, checks=0): # here added another variable for constraints, is for Tiles class
+    """Return true if we remove a value."""
+    revised = False
+    for x in csp.curr_domains[Xi][:]:
+        # If Xi=x conflicts with Xj=y for every possible y, eliminate Xi=x
+        # if all(not csp.constraints(Xi, x, Xj, y) for y in csp.curr_domains[Xj]):
+        conflict = True
+        for y in csp.curr_domains[Xj]:
+            if csp.constraints(Xi, x, Xj, y, assignment): # here added another variable for constraints, is for Tiles class
+                conflict = False
+            checks += 1
+            if not conflict:
+                break
+        if conflict:
+            csp.prune(Xi, x, removals)
+            revised = True
+    return revised, checks
+
+# ______________________________________________________________________________
+# CSP Backtracking Search @ overriden functions
+# Inference
+
+def forward_checking(csp, var, value, assignment, removals):
+    """Prune neighbor values inconsistent with var=value."""
+    csp.support_pruning()
+    for B in csp.neighbors[var]:
+        if B not in assignment:
+            for b in csp.curr_domains[B][:]:
+                if not csp.constraints(var, value, B, b, assignment):  # here added another variable for constraints, is for Tiles class
+                    csp.prune(B, b, removals)
+            if not csp.curr_domains[B]:
+                return False
+    return True
+
+
+def mac(csp, var, value, assignment, removals, constraint_propagation=AC3):
+    """Maintain arc consistency."""
+    return constraint_propagation(csp, assignment, {(X, var) for X in csp.neighbors[var]}, removals) # here added another variable for constraints, is for Tiles class
+
+
+def backtracking_search(csp, select_unassigned_variable=mrv,
+                        order_domain_values=lcv, inference=mac):
+    """
+
+    :param csp:
+    :param select_unassigned_variable:
+    :param order_domain_values:
+    :param inference:
+    :return:
+    """
+
+    def backtrack(assignment):
+        if len(assignment) == len(csp.variables) and checkResult(assignment, csp) == csp.targets:
+            return assignment
+        elif len(assignment) == len(csp.variables):
+            return
+        var = select_unassigned_variable(assignment, csp)
+        print(assignment)
+        # while not len(assignment) == len(csp.variables):
+        for value in order_domain_values(var, assignment, csp):
+            if 0 == csp.nconflicts(var, value,
+                                   assignment):  # this means if we assign var and value here, how many conflicts we get
+                csp.assign(var, value, assignment)
+                removals = csp.suppose(var, value)
+                if inference(csp, var, value, assignment, removals):
+                    result = backtrack(assignment)
+                    if result is not None:
+                        return result
+                csp.restore(removals)
+        csp.unassign(var, assignment)
+        return None
+
+    result = backtrack({})
+    assert result is None or csp.goal_test(result)
+    return result
+
 def checkResult(result, tiles):
     """
     Check if the result is correct, which should have the correct number of tiles used, and target numbers of bushes visible
@@ -311,12 +418,15 @@ def checkResult(result, tiles):
 
     tilesUsed = [0, 0, 0]
     visibleBushes = tiles.visibleBushes
+
     for cellNumber in result.keys():
         tilesUsed[result[cellNumber]] += 1
         updateVisibleBushes(cellNumber, result[cellNumber], visibleBushes)
+    print("Tiles available: ", tiles.availableTiles)
     print("Tiles used: ", tilesUsed)
+    print("Target bushes: ", tiles.targets)
     print("Visible bushes: ", visibleBushes)
-
+    return visibleBushes
 
 
 if __name__ == '__main__':
