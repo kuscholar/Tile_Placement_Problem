@@ -55,7 +55,7 @@ class Tiles(CSP):
 
     def tile_constraint(self, A, a, B, b, assignment):
         """
-        constraints for tile placement, generally it's only the placement of tiles should not exceed the target and the number of tiles that we have
+        constraints for tile placement, generally it's the placement of tiles should not exceed the target and the number of tiles that we have
         :param A: var
         :param a: val
         :param B: var2
@@ -74,6 +74,8 @@ class Tiles(CSP):
                 return False
         visibleBushes = self.currVisibleBushes(assignment)
         for i in range(len(self.visibleBushes)):
+            if visibleBushes[i] < self.targets[i]:
+                return False
             if len(assignment) == len(self.landScape):
                 if visibleBushes[i] != self.targets[i]:
                     return False
@@ -187,6 +189,8 @@ class Tiles(CSP):
         for i in range(len(self.visibleBushes)):
             # if currVisibleBushes[i] < self.targets[i] + 3:  # 5 is just a random number , should be the number of bushes if assign here
             #     if currVisibleBushes[i] != self.targets[i]:
+            if currVisibleBushes[i] < self.targets[i]:
+                count += 1
             if len(assignment) == len(self.landScape):
                 if currVisibleBushes[i] != self.targets[i]:
                     count += 1
@@ -300,6 +304,46 @@ def revise(csp, assignment, Xi, Xj, removals, checks=0): # here added another va
 
 # ______________________________________________________________________________
 # CSP Backtracking Search @ overriden functions
+
+# Variable ordering
+
+def first_unassigned_variable(assignment, csp):
+    """The default variable order."""
+    return first([var for var in csp.variables if var not in assignment])
+
+
+def mrv(assignment, csp):
+    """Minimum-remaining-values heuristic."""
+    return argmin_random_tie([v for v in csp.variables if v not in assignment],
+                             key=lambda var: num_legal_values(csp, var, assignment))
+
+
+def num_legal_values(csp, var, assignment):
+    bushes = csp.bushesInCell(csp.landScape[var])
+    return num_colors(bushes)
+    # if csp.curr_domains:
+    #     return len(csp.curr_domains[var])
+    # else:
+    #     return count(csp.nconflicts(var, val, assignment) == 0 for val in csp.domains[var])
+
+def num_colors(bushes):
+    sum = 0
+    for color in bushes:
+        sum += color
+    return sum
+
+# Value ordering
+
+
+def unordered_domain_values(var, assignment, csp):
+    """The default value order."""
+    return csp.choices(var)
+
+
+def lcv(var, assignment, csp):
+    """Least-constraining-values heuristic."""
+    return sorted(csp.choices(var), key=lambda val: csp.nconflicts(var, val, assignment))
+
 # Inference
 
 def forward_checking(csp, var, value, assignment, removals):
@@ -337,8 +381,9 @@ def backtracking_search(csp, select_unassigned_variable=mrv,
             return assignment
 
         var = select_unassigned_variable(assignment, csp)
-        # print(assignment)
-        # while not len(assignment) == len(csp.variables):
+        if PRINT_ASSIGNMENT:
+            print(assignment)
+        # Is there any duplicate assignment checked? Maybe add a visited to check assignment
         for value in order_domain_values(var, assignment, csp):
             if 0 == csp.nconflicts(var, value,
                                    assignment):  # this means if we assign var and value here, how many conflicts we get

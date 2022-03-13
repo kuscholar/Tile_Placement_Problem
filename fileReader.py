@@ -14,6 +14,9 @@ TILES_LINE = 24
 TARGETS_LINE = 27
 TILE_SIZE = 4
 TILES_NUMBER = 25
+TILES_PER_ROW = 5
+TILE_NAMES = {0: "OUTER_BOUNDARY", 1: "EL_SHAPE", 2: "FULL_BLOCK"}
+PRINT_ASSIGNMENT = False
 
 def readTxt(fileName: str):
     '''
@@ -40,6 +43,8 @@ def readTxt(fileName: str):
                       [2,1,0,0],   [0,0,0,0],
                       [0,3,2,0]],  [0,0,0,0]], ...
                       ...            ...              ...     ]
+            The order of tiles is from left to right, top to bottom
+
     '''
     landScape = [[] for _ in range(LS_LINE_END - LS_LINE_START + 1)]
     if os.path.splitext(fileName)[1] != '.txt':
